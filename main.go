@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -62,6 +63,21 @@ func make_csv(r *[][]string) string {
 	return f.Name() // returns the name of the csv
 }
 
+func get_num_records(filename string) int {
+	f, err := os.Open(filename)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	r := csv.NewReader(f)
+	records, err := r.ReadAll()
+
+	return len(records)
+
+}
+
 func start_quiz(fileName string, q *quizzer, num_records int) {
 	f, err := os.Open(fileName)
 
@@ -96,12 +112,29 @@ func start_quiz(fileName string, q *quizzer, num_records int) {
 
 }
 
-func main() {
-	num_records := 2 // creates n number of records;
+func checkFileExists(filePath string) (string, bool) {
+	_, error := os.Stat(filePath)
+	return filePath, !errors.Is(error, os.ErrNotExist)
+}
 
-	records := [][]string{}            // create slice of record slices
-	make_fields(&records, num_records) // create question,answer field
-	fileName := make_csv(&records)
+func main() {
+	// check if problems.csv file exists, if not, create one, skip if it exists
+	// var fileName, fileExists := checkFileExists("problems.csv")
+	var fileName string
+	var fileExists bool
+	var num_records int
+	fileName, fileExists = checkFileExists("problems.csv")
+
+	if fileExists {
+		num_records = get_num_records(fileName)
+		start_quiz(fileName, &quizzer{0, 0, 0}, num_records)
+	} else {
+		num_records = 5                    // creates n number of records;
+		records := [][]string{}            // create slice of record slices
+		make_fields(&records, num_records) // create question,answer field
+		fileName = make_csv(&records)
+
+	}
 
 	start_quiz(fileName, &quizzer{0, 0, 0}, num_records)
 
