@@ -6,7 +6,6 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"os"
@@ -63,46 +62,29 @@ func make_csv(r *[][]string) string {
 	return f.Name() // returns the name of the csv
 }
 
-func get_num_records(filename string) int {
+func get_records(filename string) ([][]string, error) {
 	f, err := os.Open(filename)
-
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer f.Close()
 
 	r := csv.NewReader(f)
 	records, err := r.ReadAll()
-
-	return len(records)
-
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
 }
 
-func start_quiz(fileName string, q *quizzer, num_records int) {
-	f, err := os.Open(fileName)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	re := csv.NewReader(f) // uses re for reader to not conflict with r ptr
-
-	for i := 0; i < num_records; i++ {
-		records, err := re.Read()
-		if err == io.EOF { // end of file reached
-			break // end of file
-		}
-		if err != nil {
-			log.Fatal(err)
-		}
-
+func start_quiz(records [][]string, q *quizzer) {
+	for i, record := range records {
 		var answer int
-		fmt.Printf("Problem #%d: %v = ", i+1, records[0])
+		fmt.Printf("Problem #%d: %v = ", i+1, record[0])
 		fmt.Scanf("%d", &answer)
 
 		q.total++
-		if strconv.Itoa(answer) == records[1] {
+		if strconv.Itoa(answer) == record[1] {
 			q.correct++
 		} else {
 			q.incorrect++
@@ -119,23 +101,28 @@ func checkFileExists(filePath string) (string, bool) {
 
 func main() {
 	// check if problems.csv file exists, if not, create one, skip if it exists
-	// var fileName, fileExists := checkFileExists("problems.csv")
-	var fileName string
-	var fileExists bool
-	var num_records int
-	fileName, fileExists = checkFileExists("problems.csv")
+	fileName, fileExists := checkFileExists("problems.csv")
+	var records [][]string
 
 	if fileExists {
-		num_records = get_num_records(fileName)
-		start_quiz(fileName, &quizzer{0, 0, 0}, num_records)
+		var err error
+		records, err = get_records(fileName)
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
-		num_records = 5                    // creates n number of records;
-		records := [][]string{}            // create slice of record slices
-		make_fields(&records, num_records) // create question,answer field
-		fileName = make_csv(&records)
-
+		records = [][]string{}
+		make_fields(&records, 5)
 	}
 
-	start_quiz(fileName, &quizzer{0, 0, 0}, num_records)
+	rand.Shuffle(len(records), func(i, j int) {
+		records[i], records[j] = records[j], records[i]
+	})
+
+	if !fileExists {
+		make_csv(&records)
+	}
+
+	start_quiz(records, &quizzer{0, 0, 0})
 
 }
