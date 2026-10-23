@@ -2,7 +2,7 @@ Quiz Game
 - A simple quiz game playable from terminal 
 
 topics/packages explored 
-[] cvsv
-[] files 
+[x] cvsv
+[x] files 
 [] flags
-[] strings
+[x] strings

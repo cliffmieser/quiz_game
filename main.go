@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"time"
 )
 
 type quizzer struct {
@@ -77,26 +78,57 @@ func get_records(filename string) ([][]string, error) {
 	return records, nil
 }
 
-func start_quiz(records [][]string, q *quizzer) {
-	for i, record := range records {
-		var answer int
-		fmt.Printf("Problem #%d: %v = ", i+1, record[0])
-		fmt.Scanf("%d", &answer)
-
-		q.total++
-		if strconv.Itoa(answer) == record[1] {
-			q.correct++
-		} else {
-			q.incorrect++
-		}
-	}
-	show_score(q)
-
-}
-
 func checkFileExists(filePath string) (string, bool) {
 	_, error := os.Stat(filePath)
 	return filePath, !errors.Is(error, os.ErrNotExist)
+}
+
+func start_quiz(records [][]string, q *quizzer) {
+	var s int
+	fmt.Printf("Enter seconds (integer): ")
+	fmt.Scanf("%d", &s)
+
+	if s <= 0 {
+		s = 30
+	}
+
+	defer show_score(q) // will be called on any return path
+
+	timer := time.NewTimer(time.Duration(s) * time.Second) // stops program after s seconds
+	defer timer.Stop()
+
+	results := make(chan bool) // true -> answered correctly
+
+	go func() { // this runs the loop of questions
+		for i, record := range records {
+			var answer int
+			fmt.Printf("Problem #%d: %v = ", i+1, record[0])
+			fmt.Scanf("%d", &answer)
+			results <- strconv.Itoa(answer) == record[1]
+			q.total++
+		}
+		close(results) // no more questions
+	}()
+
+	// while the above go routine provides questions, we wait for correct/incorrect
+	// answers from the results channel, which determines how to update the score
+	for {
+		select {
+		case correct, ok := <-results:
+			if !ok {
+				return // all questions answered
+			}
+			q.total++
+			if correct {
+				q.correct++
+			} else {
+				q.incorrect++
+			}
+		case <-timer.C:
+			fmt.Println("\nTime's up!")
+			return
+		}
+	}
 }
 
 func main() {
@@ -126,3 +158,8 @@ func main() {
 	start_quiz(records, &quizzer{0, 0, 0})
 
 }
+
+/*
+Next: Add timers that are customizable with flags
+
+*/
